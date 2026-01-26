@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>History - Indostock</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Sidebar & Overlay */
+        #sidebar { transition: transform 0.3s ease-in-out; }
+        .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; }
+        .sidebar-overlay.active { display: block; }
+
+        /* Custom scrollbar */
+        main::-webkit-scrollbar { width: 5px; }
+        main::-webkit-scrollbar-track { background: transparent; }
+        main::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        
+        body { background-color: #0f172a; color: #f8fafc; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <div id="sidebarOverlay" class="sidebar-overlay md:hidden" onclick="toggleSidebar()"></div>
+
+    <aside id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-[#1e293b] border-r border-slate-700 p-6 flex flex-col z-50 transform -translate-x-full md:translate-x-0 md:sticky md:top-0 h-screen transition-transform duration-300 ease-in-out">
+        <h1 class="text-2xl font-black text-emerald-400 mb-10 italic tracking-tighter">INDOSTOCK</h1>
+        
+        <nav class="flex flex-col gap-1 flex-1">
+            <a href="index.html" class="flex items-center gap-3 p-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition font-bold uppercase text-xs tracking-widest">
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" /><path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" /></svg>
+                Dashboard
+            </a>
+            <a href="uang.html" class="flex items-center gap-3 p-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition font-bold uppercase text-xs tracking-widest">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Uang
+            </a>
+            <a href="history.html" class="flex items-center gap-3 p-4 rounded-xl bg-slate-800 text-emerald-400 font-bold border border-slate-700 uppercase text-xs tracking-widest">
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" /></svg>
+                History
+            </a>
+        </nav>
+
+        <div class="relative mt-auto pt-6 border-t border-slate-700" id="profileArea">
+            <button onclick="toggleDropdown()" class="w-full flex items-center gap-3 p-2 rounded-2xl hover:bg-slate-800 transition-all">
+                <div class="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 overflow-hidden shadow-inner flex-shrink-0">
+                    <img src="" id="userPhotoDisplay" class="w-full h-full object-cover">
+                </div>
+                <div class="text-left hidden md:block overflow-hidden">
+                    <p class="text-[9px] font-black text-slate-500 uppercase truncate">Trader</p>
+                    <p id="userNameDisplay" class="text-xs font-black text-emerald-400 truncate">Loading...</p>
+                </div>
+            </button>
+        <div id="dropdownMenu" class="absolute right-0 bottom-full mt-3 w-44 bg-[#1e293b] border border-slate-700 rounded-2xl shadow-2xl py-2 hidden z-[999]">
+                <div class="px-4 py-2 border-b border-slate-700/50 mb-1">
+                    <span class="text-[9px] font-black text-slate-500 uppercase">System Status</span>
+                    <div class="flex items-center gap-2">
+                        <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                        <p class="text-[11px] font-bold text-emerald-400">Online</p>
+                    </div>
+                </div>               
+                 <button onclick="logout()" class="w-full flex items-center gap-3 px-4 py-3 text-rose-400 hover:bg-rose-500/10 transition-all">
+                    <span class="text-[11px] font-black uppercase tracking-widest">Sign Out</span>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 w-full flex flex-col h-full overflow-y-auto bg-[#0f172a]">
+        
+        <header class="md:hidden bg-[#1e293b] p-4 border-b border-slate-700 flex justify-between items-center sticky top-0 z-30">
+            <h1 class="text-xl font-black text-emerald-400 italic">INDOSTOCK</h1>
+            <button onclick="toggleSidebar()" class="p-2 bg-slate-800 rounded-lg text-emerald-400">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M4 6h16M4 12h16m-7 6h7" /></svg>
+            </button>
+        </header>
+
+        <div class="p-4 md:p-10">
+            <header class="mb-8">
+                <h2 class="text-3xl font-black text-white">Trading History</h2>
+                <p class="text-slate-400 text-sm">Monitor dan evaluasi performa trading Anda</p>
+            </header>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-slate-800/50 p-5 rounded-2xl border border-slate-700">
+                    <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest">Total Trade</p>
+                    <h3 class="text-2xl font-black text-white" id="statTotalTrade">0</h3>
+                </div>
+                <div class="bg-slate-800/50 p-5 rounded-2xl border border-slate-700">
+                    <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest">Win Rate</p>
+                    <h3 class="text-2xl font-black text-emerald-400" id="statWinRate">0%</h3>
+                </div>
+                <div class="bg-slate-800/50 p-5 rounded-2xl border border-slate-700">
+                    <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest">Net Profit/Loss</p>
+                    <h3 class="text-2xl font-black text-emerald-400" id="statNetProfit">Rp 0</h3>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap gap-2 mb-6">
+                <button onclick="filterData('all')" class="filter-btn px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold uppercase tracking-widest">Semua</button>
+                <button onclick="filterData('week')" class="filter-btn px-4 py-2 rounded-xl bg-slate-800 text-slate-400 text-xs font-bold uppercase tracking-widest hover:bg-slate-700">Minggu Ini</button>
+                <button onclick="filterData('month')" class="filter-btn px-4 py-2 rounded-xl bg-slate-800 text-slate-400 text-xs font-bold uppercase tracking-widest hover:bg-slate-700">Bulan Ini</button>
+            </div>
+
+            <div class="bg-[#1e293b] rounded-2xl border border-slate-800 overflow-x-auto">
+                <table class="w-full text-left border-collapse min-w-[600px]">
+                    <thead>
+                        <tr class="bg-slate-800/50 text-slate-500 text-[10px] font-black uppercase tracking-widest">
+                            <th class="p-4">Tanggal</th>
+                            <th class="p-4">Emiten</th>
+                            <th class="p-4">Type</th>
+                            <th class="p-4">Lot</th>
+                            <th class="p-4 text-right">Total P/L</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody" class="text-sm font-medium">
+                        <tr>
+                            <td colspan="5" class="p-10 text-center text-slate-500 italic">Memuat data transaksi...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('-translate-x-full');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
+        }
+
+        function toggleDropdown() {
+            document.getElementById("dropdownMenu").classList.toggle("hidden");
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = "login.html";
+        }
+
+        // Logic Fetching Data (Sesuai kode kamu sebelumnya)
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbxigXCHCY9T849VR5E88sZOWDYSkoEAdu57uDDMP1VFYK-ZXRCxKsPOIl9QFukvJolM/exec';
+
+        async function fetchHistory(range = 'all') {
+            const tableBody = document.getElementById("historyTableBody");
+            tableBody.innerHTML = `<tr><td colspan="5" class="p-10 text-center text-slate-500 animate-pulse">Menghubungkan...</td></tr>`;
+
+            try {
+                const response = await fetch(scriptURL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'getHistory', range: range })
+                });
+                const result = await response.json();
+                if (result.status === "success") {
+                    renderTable(result.data);
+                    calculateStats(result.data);
+                }
+            } catch (error) {
+                tableBody.innerHTML = `<tr><td colspan="5" class="p-10 text-center text-rose-400">Error koneksi.</td></tr>`;
+            }
+        }
+
+        function renderTable(data) {
+            const tableBody = document.getElementById("historyTableBody");
+            if (!data || data.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="5" class="p-10 text-center text-slate-500">Data kosong.</td></tr>`;
+                return;
+            }
+            tableBody.innerHTML = data.map(item => `
+                <tr class="border-b border-slate-800 hover:bg-slate-800/30 transition-colors">
+                    <td class="p-4 text-slate-400 font-mono text-xs">${item.tgl || '-'}</td>
+                    <td class="p-4 font-black text-white">${item.stock || '-'}</td>
+                    <td class="p-4"><span class="px-2 py-1 rounded-md text-[10px] font-black ${item.type === 'BUY' ? 'bg-blue-500/20 text-blue-400' : 'bg-orange-500/20 text-orange-400'}">${item.type}</span></td>
+                    <td class="p-4 text-slate-300">${item.lot || 0}</td>
+                    <td class="p-4 text-right font-bold ${item.pl >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${item.pl >= 0 ? '+' : ''}${item.pl.toLocaleString('id-ID')}</td>
+                </tr>
+            `).join('');
+        }
+
+function calculateStats(data) {
+    // 1. Filter data: Hanya hitung transaksi yang sudah CLOSE
+    // Kita asumsikan transaksi CLOSE adalah yang memiliki harga exit > 0 atau status tertentu
+    // Jika di data Anda ada kolom status, gunakan: d.status === 'CLOSE'
+    const closedTrades = data.filter(d => Number(d.exit) > 0 || d.pl !== 0);
+
+    const totalTrade = closedTrades.length;
+    const wins = closedTrades.filter(d => Number(d.pl) > 0).length;
+    
+    // Win Rate hanya dihitung dari trade yang sudah selesai (Closed)
+    const winRate = totalTrade > 0 ? ((wins / totalTrade) * 100).toFixed(1) : 0;
+    
+    // Net P/L tetap menghitung semua (termasuk open pnl jika ada)
+    const netPL = data.reduce((acc, curr) => acc + Number(curr.pl), 0);
+
+    // Update UI
+    document.getElementById("statTotalTrade").innerText = totalTrade; // Menampilkan jumlah trade yang selesai
+    document.getElementById("statWinRate").innerText = winRate + "%";
+    document.getElementById("statNetProfit").innerText = "Rp " + netPL.toLocaleString('id-ID');
+    document.getElementById("statNetProfit").className = `text-2xl font-black ${netPL >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+}
+
+        function filterData(range) {
+            fetchHistory(range);
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const name = localStorage.getItem("displayName") || "User";
+            const photo = localStorage.getItem("photoUrl");
+            document.getElementById("userNameDisplay").innerText = name;
+            const imgEl = document.getElementById("userPhotoDisplay");
+            imgEl.src = photo && photo.startsWith("http") ? photo : `https://ui-avatars.com/api/?name=${name}&background=10b981&color=fff&bold=true`;
+            fetchHistory('all');
+        });
+    </script>
+</body>
+</html>

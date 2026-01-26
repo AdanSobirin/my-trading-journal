@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IndoStock | Pro Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; }
+    /* Ubah bagian ini agar display: none benar-benar terkunci di awal */
+    /* Warna input agar kontras dengan modal tapi tetap gelap */
+input, select { 
+    background-color: #0f172a !important; /* Biru sangat gelap */
+    border: 2px solid #334155 !important; /* Border slate */
+    color: #10b981 !important; /* Teks hijau emerald agar terbaca jelas */
+    font-weight: 800 !important;
+}
+
+/* Warna placeholder agar tidak terlalu terang */
+input::placeholder {
+    color: #475569 !important;
+    font-weight: 400;
+}
+
+/* Fokus saat diklik */
+input:focus, select:focus {
+    border-color: #10b981 !important;
+    background-color: #020617 !important;
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+}
+
+/* Khusus angka Entry/Exit dibuat putih agar beda dengan Ticker */
+#entry, #exit, #lot, #fee {
+    color: #f8fafc !important; 
+}
+    .sidebar-overlay, .modal-overlay { 
+        display: none; 
+        position: fixed; 
+        inset: 0; 
+        background: rgba(0,0,0,0.8); /* Gelap transparan */
+        z-index: 60; 
+        backdrop-filter: blur(8px);
+    }
+
+    /* Kelas khusus untuk menampilkan (hanya dipasang lewat JS) */
+    .modal-overlay.show-flex { 
+        display: flex !important; 
+    }
+
+    /* Animasi Modal */
+    #entryModal { 
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+        transform: translateY(20px); 
+        opacity: 0; 
+    }
+
+    #entryModal.active { 
+        transform: translateY(0); 
+        opacity: 1; 
+    }
+/* Floating Action Button (FAB) */
+.fab {
+    position: fixed;
+    bottom: 2rem;       /* Jarak dari bawah */
+    right: 2rem;        /* Jarak dari kanan */
+    width: 4rem;        /* Lebar tombol */
+    height: 4rem;       /* Tinggi tombol */
+    background-color: #10b981; /* Warna hijau emerald */
+    border-radius: 50%; /* Membuat jadi bulat sempurna */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.5); /* Efek bayangan */
+    z-index: 45;        /* Memastikan di atas elemen lain */
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Efek saat ditekan */
+.fab:active { 
+    transform: scale(0.9) rotate(90deg); 
+}
+        
+        /* Sidebar Responsive Logic */
+        #sidebar { transition: transform 0.3s ease-in-out; }
+        .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; }
+        .sidebar-overlay.active { display: block; }
+
+        /* Gauge Win Rate */
+        .gauge-container { position: relative; width: 100px; height: 50px; overflow: hidden; }
+        .gauge-body { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 200%; 
+            border-radius: 50%; border: 8px solid #1e293b; 
+            border-bottom-color: #10b981; border-right-color: #10b981;
+            transform: rotate(-45deg); transition: transform 1s ease-out;
+        }
+
+        /* Stat Cards Consistency */
+        .stat-card {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 1.25rem;
+            min-height: 110px;
+        }
+
+        /* Calendar Grid Responsive */
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .calendar-box { min-height: 80px; display: flex; flex-direction: column; justify-content: space-between; }
+
+        @media (max-width: 640px) {
+            .calendar-box { min-height: 65px; padding: 4px !important; }
+            .calendar-box p { font-size: 0.65rem !important; }
+            .calendar-box span { font-size: 0.75rem !important; }
+            .gauge-container { width: 80px; height: 40px; }
+            .stat-card h3 { font-size: 1.1rem !important; }
+        }
+/* Pastikan overlay mengizinkan scroll secara vertikal */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 100;
+    backdrop-filter: blur(8px);
+    overflow-y: auto; /* KUNCI UTAMA */
+    -webkit-overflow-scrolling: touch; /* Biar scroll smooth di iPhone */
+}
+
+/* Modifikasi agar tampilan Flexbox di overlay tidak mengunci posisi modal */
+.modal-overlay.show-flex {
+    display: flex !important;
+}
+/* Hilangkan scrollbar default agar lebih cantik */
+.modal-overlay::-webkit-scrollbar {
+    width: 6px;
+}
+/* Menghilangkan scrollbar tapi fungsi tetap ada (opsional agar bersih) */
+#tradeForm::-webkit-scrollbar {
+    width: 0px;
+    background: transparent;
+}    
+
+    </style>
+</head>
+
+<body class="flex h-screen overflow-hidden bg-[#0f172a]">
+
+    <div id="sidebarOverlay" class="sidebar-overlay md:hidden" onclick="toggleSidebar()"></div>
+
+<div id="modalOverlay" class="modal-overlay overflow-y-auto items-start md:items-center justify-center p-4 py-10">
+            <div id="entryModal" class="w-full max-w-lg bg-[#1e293b] rounded-[2.5rem] shadow-2xl border border-slate-700 overflow-hidden">
+            <div class="p-6 md:p-8 flex justify-between items-center border-b border-slate-700">
+                <h2 class="text-2xl font-black text-emerald-400 italic">ADD TRADE</h2>
+                <button onclick="toggleModal()" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-900 text-slate-400 hover:text-white transition-all hover:rotate-90">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+                    </div>
+            <!--  BAGIAN YANG BARU DI UBAH  -->
+        <form id="tradeForm" class="p-6 md:p-8 space-y-6 overflow-y-auto custom-scroll">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="flex flex-col gap-1.5 text-left">
+                    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Tgl Masuk</label>
+                    <input type="date" id="tglMasuk" required class="w-full p-4 rounded-2xl outline-none border-2 border-slate-700 bg-[#0f172a] text-white">
+                </div>
+                <div class="flex flex-col gap-1.5 text-left">
+                    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Status Trade</label>
+                    <select id="posisi" class="w-full p-4 rounded-2xl outline-none border-2 border-slate-700 bg-[#0f172a] text-emerald-400 font-bold appearance-none cursor-pointer">
+                        <option value="OPEN">🟢 OPEN</option>
+                        <option value="CLOSE">🔴 CLOSE</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="tglKeluarContainer" class="hidden flex-col gap-1.5 text-left animate-fade-in">
+                <label class="text-[10px] font-black text-rose-400 uppercase tracking-widest ml-1">Tgl Keluar</label>
+                <input type="date" id="tglKeluar" class="w-full p-4 rounded-2xl outline-none border-2 border-slate-700 bg-[#0f172a] text-white">
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="flex flex-col gap-1.5 text-left">
+                    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Ticker Saham</label>
+                    <input type="text" id="emiten" placeholder="Contoh: BBCA" required class="w-full p-4 rounded-2xl outline-none border-2 border-slate-700 bg-[#0f172a] text-emerald-400 font-black uppercase">
+                </div>
+                <div class="flex flex-col gap-1.5 text-left">
+                    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Total Lot</label>
+                    <input type="number" id="lot" placeholder="1" required class="w-full p-4 rounded-2xl outline-none border-2 border-slate-700 bg-[#0f172a] text-white font-bold">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="flex flex-col gap-1.5 text-left">
+                    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Entry Price</label>
+                    <input type="number" id="entry" placeholder="0" required class="w-full p-4 rounded-2xl outline-none border-2 border-slate-700 bg-[#0f172a] text-white font-bold">
+                </div>
+                <div id="exitPriceContainer" class="hidden flex-col gap-1.5 text-left transition-all">
+                    <label class="text-[10px] font-black text-rose-400 uppercase tracking-widest ml-1">Exit Price</label>
+                    <input type="number" id="exit" placeholder="0" class="w-full p-4 rounded-2xl outline-none border-2 border-slate-700 bg-[#0f172a] text-white font-bold">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4">
+                <div class="flex flex-col gap-1.5 text-left">
+                    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Fee %</label>
+                    <input type="number" id="fee" value="0.15" step="0.01" class="w-full p-4 rounded-2xl outline-none border-2 border-slate-700 bg-[#0f172a] text-white">
+                </div>
+                <div class="flex flex-col gap-1.5 text-left">
+                    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Notes / Plan</label>
+                    <textarea id="catatan" placeholder="Target profit..." class="w-full p-4 rounded-2xl outline-none border-2 border-slate-700 bg-[#0f172a] text-slate-300 h-24 resize-none focus:border-emerald-500"></textarea>
+                </div>
+            </div>
+
+            <div class="pt-4 shrink-0">
+                <button type="submit" id="submitBtn" class="w-full bg-emerald-600 hover:bg-emerald-500 py-5 rounded-2xl font-black text-lg shadow-xl shadow-emerald-900/20 uppercase transition-all active:scale-[0.98] text-white">
+                    Simpan Transaksi
+                </button>
+            </div>
+        </form>
+        </div>
+    </div>
+
+<aside id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-[#1e293b] border-r border-slate-700 p-6 flex flex-col z-50 transform -translate-x-full md:translate-x-0 md:sticky md:top-0 h-screen">        <h1 class="text-2xl font-black text-emerald-400 mb-10 italic tracking-tighter">INDOSTOCK</h1>
+        <nav class="flex flex-col gap-1 min-h-[70vh] md:min-h-[80vh]">
+            <button onclick="toggleModal()" class="hidden md:flex items-center justify-center gap-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 px-4 rounded-2xl mb-8 shadow-lg shadow-emerald-900/40 transition-all active:scale-95">
+    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M12 4v16m8-8H4" /></svg>
+    <span>ADD TRADE</span>
+</button>
+
+            <a href="index.html" class="flex items-center gap-3 p-4 rounded-xl bg-slate-800 text-emerald-400 font-bold border border-slate-700 uppercase text-xs tracking-widest">
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" /><path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" /></svg>
+                Dashboard
+            </a>
+            <a href="uang.html" class="flex items-center gap-3 p-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition font-bold uppercase text-xs tracking-widest">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Uang
+            </a>
+            <a href="history.html" class="flex items-center gap-3 p-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition font-bold uppercase text-xs tracking-widest">
+                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" /></svg>
+                History
+            </a>
+
+        </nav>
+        <div class="relative mt-auto flex items-center" id="profileArea">
+    <button onclick="toggleDropdown()" class="flex items-center gap-3 p-1.5 rounded-2xl hover:bg-slate-800/50 transition-all border border-transparent hover:border-slate-700">
+        <div class="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 overflow-hidden shadow-inner">
+            <img src="" id="userPhotoDisplay" class="w-full h-full object-cover" alt="Profile">
+        </div>
+        <div class="text-left hidden md:block">
+            <p class="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">Trader</p>
+            <p id="userNameDisplay" class="text-xs font-black text-emerald-400">Loading...</p>
+        </div>
+        
+        
+    </button>
+
+    <div id="dropdownMenu" class="absolute right-0 bottom-full mt-3 w-44 bg-[#1e293b] border border-slate-700 rounded-2xl shadow-2xl py-2 hidden z-[999]">
+        <div class="px-4 py-2 border-b border-slate-700/50 mb-1">
+            <span class="text-[9px] font-black text-slate-500 uppercase">System Status</span>
+            <div class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                <p class="text-[11px] font-bold text-emerald-400">Online</p>
+            </div>
+        </div>
+        
+        <button onclick="logout()" class="w-full flex items-center gap-3 px-4 py-3 text-rose-400 hover:bg-rose-500/10 transition-all group">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <span class="text-[11px] font-black uppercase tracking-widest">Sign Out</span>
+        </button>
+    </div>
+</div>
+    </aside>
+
+    <main class="flex-1 w-full flex flex-col h-full overflow-y-auto">
+        
+<header class="md:hidden bg-[#1e293b] p-4 border-b border-slate-700 flex justify-between items-center sticky top-0 z-30">
+                <h1 class="text-xl font-black text-emerald-400 italic">INDOSTOCK</h1>
+            <button onclick="toggleSidebar()" class="p-2 bg-slate-800 rounded-lg">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" /></svg>
+            </button>
+        </header>
+
+        <div class="p-4 md:p-8 space-y-6 md:space-y-8">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+                <div class="stat-card">
+                    <p class="text-[9px] md:text-[11px] text-slate-400 uppercase font-black tracking-widest mb-1">Net P/L</p>
+                    <h3 id="stat-net-pl" class="text-lg md:text-2xl font-black text-white">Rp 0</h3>
+                </div>
+
+                <div class="stat-card">
+    <p class="text-[9px] md:text-[11px] text-slate-400 uppercase font-black tracking-widest mb-1">Win Rate</p>
+    <div class="relative flex flex-col items-center">
+        <div id="gauge-bg" class="relative w-24 h-12 md:w-32 md:h-16 overflow-hidden" 
+             style="border-radius: 100px 100px 0 0; background: conic-gradient(from 0deg at 50% 100%, #f43f5e 0deg, #f43f5e 180deg, transparent 180deg);">
+            <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-[75%] h-[75%] bg-[#1e293b] rounded-t-full z-10"></div>
+        </div>
+        
+        <div class="flex justify-between w-full mt-1 px-1">
+            <span id="total-win" class="text-[9px] font-black text-emerald-400">0 W</span>
+            <span id="total-loss" class="text-[9px] font-black text-rose-400">0 L</span>
+        </div>
+
+        <div class="absolute top-5 md:top-7 flex flex-col items-center z-20">
+            <span id="stat-win-rate" class="text-sm md:text-xl font-black">0%</span>
+        </div>
+    </div>
+</div>
+
+                <div class="stat-card">
+                    <p class="text-[9px] md:text-[11px] text-slate-400 uppercase font-black tracking-widest mb-1">Total Modal</p>
+                    <h3 id="stat-modal" class="text-lg md:text-2xl font-black">Rp 0</h3>
+                </div>
+
+                <div class="stat-card bg-gradient-to-br from-slate-800 to-emerald-900/20 border-emerald-500/30">
+                    <p class="text-emerald-400 text-[9px] md:text-[11px] uppercase font-black tracking-widest mb-1">Total Equity</p>
+                    <h3 id="stat-equity" class="text-lg md:text-2xl font-black">Rp 0</h3>
+                </div>
+            </div>
+
+ <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+    
+    <div class="lg:col-span-2 bg-[#1e293b] p-4 md:p-8 rounded-3xl border border-slate-700 shadow-2xl h-fit">
+        <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6 md:mb-10">
+            <div class="flex items-center gap-4">
+                <button onclick="changeMonth(-1)" class="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center bg-slate-800 rounded-xl hover:bg-slate-700 transition">◀</button>
+                <h2 id="monthDisplay" class="text-lg md:text-2xl font-black tracking-tighter uppercase italic w-40 md:w-56 text-center">Januari 2026</h2>
+                <button onclick="changeMonth(1)" class="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center bg-slate-800 rounded-xl hover:bg-slate-700 transition">▶</button>
+            </div>
+        </div>
+
+        <div class="calendar-grid">
+            <div class="text-center text-[10px] font-black text-slate-500 pb-2">SUN</div>
+            <div class="text-center text-[10px] font-black text-slate-500 pb-2">MON</div>
+            <div class="text-center text-[10px] font-black text-slate-500 pb-2">TUE</div>
+            <div class="text-center text-[10px] font-black text-slate-500 pb-2">WED</div>
+            <div class="text-center text-[10px] font-black text-slate-500 pb-2">THU</div>
+            <div class="text-center text-[10px] font-black text-slate-500 pb-2 text-emerald-500">FRI</div>
+            <div class="text-center text-[10px] font-black text-slate-500 pb-2 text-rose-500">SAT</div>
+            <div id="calendar-body" class="contents"></div>
+        </div>
+    </div>
+
+<div class="bg-[#1e293b] p-6 rounded-3xl border border-slate-700 shadow-2xl flex flex-col h-fit lg:max-h-[600px]">
+    <div class="flex items-center justify-between mb-6 border-b border-slate-700 pb-4">
+        <h2 class="text-lg font-black text-emerald-400 italic uppercase">Open Positions</h2>
+        <span id="open-count" class="bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-1 rounded-lg font-black">0 STOCKS</span>
+    </div>
+    
+    <div id="open-trades-list" class="space-y-4 overflow-y-auto custom-scroll pr-2 min-h-[100px]">
+        <p class="text-slate-500 text-xs font-bold italic text-center py-10">Loading positions...</p>
+    </div>
+</div>
+</div>
+        </div>
+        <div id="modalCloseOverlay" class="fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+    <div class="w-full max-w-md bg-[#1e293b] rounded-[2.5rem] shadow-2xl border border-slate-700 p-6 md:p-8">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-black text-rose-500 italic uppercase">CLOSE: <span id="display-emiten-close" class="text-white"></span></h2>
+            <button onclick="closeModalClose()" class="text-slate-400 hover:text-white">✕</button>
+        </div>
+        <form id="closeTradeForm" class="space-y-4">
+            <input type="hidden" id="close-emiten">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="flex flex-col gap-1">
+                    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Lot</label>
+                    <input type="number" id="close-lot" readonly class="w-full p-3 rounded-xl bg-slate-900 text-slate-500">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Harga Jual</label>
+                    <input type="number" id="close-exit" required class="w-full p-3 rounded-xl border-2 border-slate-700 bg-[#0f172a] text-white">
+                </div>
+            </div>
+            <div class="flex flex-col gap-1">
+                <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Tanggal Keluar</label>
+                <input type="date" id="close-date" required class="w-full p-3 rounded-xl border-2 border-slate-700 bg-[#0f172a] text-white">
+            </div>
+            <textarea id="close-note" placeholder="Catatan jual..." class="w-full p-3 rounded-xl border-2 border-slate-700 bg-[#0f172a] text-slate-300 h-20"></textarea>
+            <button type="submit" id="btnSubmitClose" class="w-full bg-rose-600 hover:bg-rose-500 py-4 rounded-2xl font-black text-white uppercase transition-all">Konfirmasi Close</button>
+        </form>
+    </div>
+</div>
+    </main>
+
+    <script>
+        // Cek status login saat halaman dibuka
+if (localStorage.getItem("isLoggedIn") !== "true") {
+    window.location.href = "login.html"; // Tendang balik ke login jika belum login
+}
+
+// Fungsi Logout
+function logout() {
+    localStorage.removeItem("isLoggedIn");
+    window.location.href = "login.html";
+}
+document.addEventListener("DOMContentLoaded", () => {
+    // 1. Ambil data yang dikirim Apps Script saat login tadi
+    const name = localStorage.getItem("displayName") || "Guest";
+    const photo = localStorage.getItem("photoUrl");
+
+    // 2. Tampilkan Nama ke UI
+    const nameEl = document.getElementById("userNameDisplay");
+    if(nameEl) nameEl.innerText = name;
+
+    // 3. Tampilkan Foto ke UI
+    const imgEl = document.getElementById("userPhotoDisplay");
+    if(imgEl) {
+        if (photo && photo.startsWith("http")) {
+            imgEl.src = photo;
+        } else {
+            // Backup jika di Sheet3 kolom fotonya kosong
+            imgEl.src = `https://ui-avatars.com/api/?name=${name}&background=10b981&color=fff&bold=true`;
+        }
+    }
+});
+
+// Fungsi buka-tutup menu
+function toggleDropdown() {
+    const menu = document.getElementById("dropdownMenu");
+    menu.classList.toggle("hidden");
+}
+
+// Tutup menu jika klik di area luar
+window.onclick = function(event) {
+    if (!event.target.closest('#profileArea')) {
+        const menu = document.getElementById("dropdownMenu");
+        if (menu) menu.classList.add("hidden");
+    }
+}
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbxigXCHCY9T849VR5E88sZOWDYSkoEAdu57uDDMP1VFYK-ZXRCxKsPOIl9QFukvJolM/exec';
+        let currentDate = new Date();
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('-translate-x-full');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
+        }
+        function toggleModal() {
+            
+    const overlay = document.getElementById('modalOverlay');
+    const modal = document.getElementById('entryModal');
+
+    // Cek apakah sedang tampil atau tidak
+    if (overlay.classList.contains('show-flex')) {
+        // Proses Menutup
+        modal.classList.remove('active');
+        setTimeout(() => {
+            overlay.classList.remove('show-flex');
+        }, 200); // Tunggu animasi selesai baru hilangkan overlay
+    } else {
+        // Proses Membuka
+        overlay.classList.add('show-flex');
+        setTimeout(() => {
+            modal.classList.add('active');
+        }, 10); // Beri jeda sangat kecil agar animasi jalan
+    }
+}
+
+        function changeMonth(step) {
+            currentDate.setMonth(currentDate.getMonth() + step);
+            fetchRealData();
+        }
+
+function renderCalendar(trades) {
+    const body = document.getElementById('calendar-body');
+    body.innerHTML = '';
+    
+    const month = currentDate.getMonth();
+    const year = currentDate.getFullYear();
+    document.getElementById('monthDisplay').innerText = `${new Intl.DateTimeFormat('id-ID', { month: 'long', year: 'numeric' }).format(currentDate)}`;
+
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    // 1. Logika TradeMap: Menghitung P/L hanya untuk transaksi yang SUDAH CLOSE
+    const tradeMap = trades.reduce((acc, t) => {
+        const d = new Date(t.date);
+        const pnlValue = Number(t.pnl || 0);
+
+        // TAMBAHKAN FILTER DISINI: Hanya proses jika pnl tidak 0 (artinya sudah close)
+        if(d.getMonth() === month && d.getFullYear() === year && pnlValue !== 0) {
+            const date = d.getDate();
+            if(!acc[date]) acc[date] = { pnl: 0, totalVolume: 0 };
+            
+            acc[date].pnl += pnlValue;
+            acc[date].totalVolume += (Number(t.entry) * Number(t.lot) * 100);
+        }
+        return acc;
+    }, {});
+
+    // Render kotak kosong awal bulan
+    for(let i=0; i<firstDay; i++) body.innerHTML += `<div></div>`;
+
+    // 2. Render isi kalender
+    for(let d=1; d<=daysInMonth; d++) {
+        const data = tradeMap[d];
+        let percentageText = "";
+        
+        if (data && data.totalVolume > 0) {
+            const roi = (data.pnl / data.totalVolume) * 100;
+            percentageText = (roi > 0 ? "+" : "") + roi.toFixed(1) + "%";
+        }
+
+        // Default style (kosong)
+        let cardStyle = "bg-slate-800/20 border-slate-700/50";
+        
+        // Style jika ada data (Profit/Loss)
+        if(data) {
+            // Gunakan > 0 agar yang benar-benar profit saja yang hijau
+            cardStyle = data.pnl > 0 ? "bg-emerald-500/10 border-emerald-500/40" : "bg-rose-500/10 border-rose-500/40";
+        }
+
+        body.innerHTML += `
+            <div class="calendar-box p-2 md:p-3 border rounded-xl md:rounded-2xl transition-all ${cardStyle}">
+                <span class="text-[10px] md:text-xs font-black text-slate-500">${d}</span>
+                ${data ? `
+                    <div class="text-center overflow-hidden">
+                        <p class="text-[10px] md:text-sm font-black truncate ${data.pnl > 0 ? 'text-emerald-400' : 'text-rose-400'}">
+                            ${data.pnl > 0 ? '+' : ''}${Math.round(data.pnl/1000)}k
+                        </p>
+                        <p class="text-[8px] md:text-[9px] font-extrabold ${data.pnl > 0 ? 'text-slate-400' : 'text-rose-400'} uppercase">
+                            ${percentageText}
+                        </p>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+}
+
+//LOGIKA CLOSE
+document.getElementById('posisi').addEventListener('change', function() {
+    const container = document.getElementById('tglKeluarContainer');
+    if (this.value === 'CLOSE') {
+        container.classList.remove('hidden');
+    } else {
+        container.classList.add('hidden');
+    }
+});
+// 1. LOGIKA EVENT LISTENER UNTUK FORM (OPEN/CLOSE)
+document.getElementById('posisi').addEventListener('change', function() {
+    const tglKeluarContainer = document.getElementById('tglKeluarContainer');
+    const exitPriceContainer = document.getElementById('exitPriceContainer');
+    const exitPriceInput = document.getElementById('exit');
+
+    if (this.value === 'CLOSE') {
+        tglKeluarContainer.classList.remove('hidden');
+        exitPriceContainer.classList.remove('hidden');
+        exitPriceInput.setAttribute('required', 'true');
+    } else {
+        tglKeluarContainer.classList.add('hidden');
+        exitPriceContainer.classList.add('hidden');
+        exitPriceInput.removeAttribute('required');
+        exitPriceInput.value = "";
+    }
+});
+// Tambahkan event listener untuk menangkap submit form
+document.getElementById('tradeForm').addEventListener('submit', async (e) => {
+    e.preventDefault(); // Mencegah halaman refresh saat submit
+
+    const btn = document.getElementById('submitBtn');
+    const originalText = btn.innerText;
+    
+    // Efek visual saat loading
+    btn.innerText = "SAVING..."; 
+    btn.disabled = true;
+
+    // Mengambil data dari inputan form
+    const payload = {
+    targetSheet: "Sheet1",
+    emiten: document.getElementById('emiten').value.toUpperCase(),
+    posisi: document.getElementById('posisi').value,
+    entry: parseFloat(document.getElementById('entry').value) || 0,
+    // Jika kosong (saat OPEN), kirim 0 agar Apps Script tidak error
+    exit: parseFloat(document.getElementById('exit').value) || 0, 
+    lot: parseInt(document.getElementById('lot').value) || 0,
+    fee: parseFloat(document.getElementById('fee').value) || 0,
+    tglMasuk: document.getElementById('tglMasuk').value,
+    // Jika kosong, kirim string kosong
+    tglKeluar: document.getElementById('tglKeluar').value || "", 
+    catatan: document.getElementById('catatan').value || ""
+    };
+
+    try {
+        // Mengirim data ke Google Apps Script via POST
+        await fetch(scriptURL, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+
+        // Jika berhasil
+        alert("Trade Berhasil Disimpan!");
+        toggleModal(); // Tutup modal
+        location.reload(); // Refresh data
+    } catch (err) {
+        // Karena CORS, terkadang fetch dianggap error padahal data masuk
+        console.error("Fetch Error:", err);
+        alert("Data Terkirim!"); 
+        location.reload();
+    } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
+});
+// 2. FUNGSI UPDATE OPEN TRADES (DAFTAR DI SEBELAH KANAN)
+function updateOpenTrades(trades) {
+    const listContainer = document.getElementById('open-trades-list');
+    const countLabel = document.getElementById('open-count');
+    if (!listContainer) return;
+
+    // 1. Filter data yang statusnya OPEN (atau PNL nya 0)
+    const openData = trades.filter(t => {
+        const statusStr = (t.posisi || "").toString().toUpperCase();
+        return statusStr === "OPEN" || Number(t.pnl || 0) === 0;
+    });
+
+    // 2. Kelompokkan (Grouping) berdasarkan Nama Emiten
+    const grouped = openData.reduce((acc, t) => {
+        const name = t.emiten.toUpperCase();
+        if (!acc[name]) {
+            acc[name] = {
+                emiten: name,
+                totalLot: 0,
+                totalValue: 0,
+                lastDate: t.date
+            };
+        }
+        
+        const currentLot = Number(t.lot || 0);
+        const currentEntry = Number(t.entry || 0);
+        
+        acc[name].totalLot += currentLot;
+        acc[name].totalValue += (currentEntry * currentLot * 100);
+        
+        // Simpan tanggal terbaru jika ada banyak transaksi
+        if (new Date(t.date) > new Date(acc[name].lastDate)) {
+            acc[name].lastDate = t.date;
+        }
+        
+        return acc;
+    }, {});
+
+    const mergedTrades = Object.values(grouped);
+
+    if (countLabel) countLabel.innerText = `${mergedTrades.length} STOCKS`;
+
+    if (mergedTrades.length === 0) {
+        listContainer.innerHTML = `<p class="text-slate-500 text-[10px] font-bold italic text-center py-10 uppercase tracking-widest">No open positions</p>`;
+        return;
+    }
+
+    // 3. Render hasil penggabungan
+   // DISINI TEMPAT TOMBOL CLOSE (Render HTML)
+    listContainer.innerHTML = mergedTrades.map(t => {
+        const avgEntry = t.totalValue / (t.totalLot * 100);
+
+        return `
+            <div class="bg-slate-800/40 p-4 rounded-2xl border border-slate-700 mb-3">
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <h4 class="text-emerald-400 font-black text-sm">${t.emiten}</h4>
+                        <p class="text-[8px] text-slate-500 font-bold uppercase">Avg: Rp ${Math.round(avgEntry).toLocaleString('id-ID')}</p>
+                    </div>
+                    
+                    <button onclick="openCloseModal('${t.emiten}', ${t.totalLot})" 
+                            class="bg-rose-500/20 hover:bg-rose-500 text-rose-500 hover:text-white px-3 py-1 rounded-lg text-[10px] font-black transition-all border border-rose-500/30 uppercase">
+                        CLOSE
+                    </button>
+                </div>
+
+                <div class="flex justify-between items-center bg-[#0f172a]/50 p-2 rounded-xl border border-slate-700/50">
+                    <div class="text-center flex-1">
+                        <p class="text-[7px] text-slate-500 uppercase">Total Lot</p>
+                        <p class="text-[10px] font-black text-white">${t.totalLot}</p>
+                    </div>
+                    <div class="w-px h-3 bg-slate-700"></div>
+                    <div class="text-center flex-1">
+                        <p class="text-[7px] text-slate-500 uppercase">Total Value</p>
+                        <p class="text-[10px] font-black text-emerald-400">Rp ${t.totalValue.toLocaleString('id-ID')}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+        async function fetchRealData() {
+    try {
+        const res = await fetch(scriptURL);
+        const data = await res.json();
+        const formatRupiah = (val) => `Rp ${(val || 0).toLocaleString('id-ID')}`;
+
+        // 1. UPDATE SPEEDOMETER & STATS WIN/LOSS
+        const totalWin = data.stats.totalWin || 0;
+        const totalLoss = data.stats.totalLoss || 0;
+        const totalTrade = totalWin + totalLoss;
+        const winRate = totalTrade > 0 ? Math.round((totalWin / totalTrade) * 100) : 0;
+        
+        document.getElementById('stat-win-rate').innerText = `${winRate}%`;
+        document.getElementById('total-win').innerText = `${totalWin} W`;
+        document.getElementById('total-loss').innerText = `${totalLoss} L`;
+
+        // Update Warna Speedometer
+        const greenDegree = (winRate / 100) * 180;
+        const gauge = document.getElementById('gauge-bg');
+        if(gauge) {
+            gauge.style.background = `conic-gradient(from 270deg at 50% 100%, #10b981 0deg ${greenDegree}deg, #f43f5e ${greenDegree}deg 180deg, transparent 180deg)`;
+        }
+
+        // 2. UPDATE NET P/L DENGAN LOGIKA WARNA
+        const netPlElement = document.getElementById('stat-net-pl');
+        const netPlValue = data.stats.netPl || 0;
+        netPlElement.innerText = (netPlValue > 0 ? '+ ' : '') + formatRupiah(netPlValue);
+        
+        netPlElement.classList.remove('text-emerald-400', 'text-rose-400', 'text-white');
+        if (netPlValue > 0) netPlElement.classList.add('text-emerald-400');
+        else if (netPlValue < 0) netPlElement.classList.add('text-rose-400');
+        else netPlElement.classList.add('text-white');
+
+        // 3. UPDATE MODAL & EQUITY
+        document.getElementById('stat-modal').innerText = formatRupiah(data.stats.totalModal);
+        document.getElementById('stat-equity').innerText = formatRupiah(data.stats.equity);
+
+        // 4. RENDER KALENDER
+if (data.recentTrades) {
+            renderCalendar(data.recentTrades);
+            updateOpenTrades(data.recentTrades); // Ini yang bertugas memunculkan list
+        } else {
+            console.error("Kolom recentTrades tidak ditemukan di JSON!");
+        }
+
+    } catch (e) {
+        console.error("Gagal sinkronisasi data:", e);
+    }
+}
+
+function logout() {
+    // Hapus tanda login
+    localStorage.removeItem("isLoggedIn");
+    localStorage.removeItem("activeUser");
+    // Tendang balik ke login
+    window.location.href = "login.html";
+}
+
+        window.onload = fetchRealData;
+                window.onload = () => {
+            fetchRealData();
+        };
+        // --- 1. FUNGSI UNTUK MEMBUKA MODAL CLOSE ---
+function openCloseModal(emiten, lot) {
+    const overlay = document.getElementById('modalCloseOverlay');
+    if (!overlay) return alert("Error: Element modalCloseOverlay tidak ditemukan di HTML!");
+
+    // Munculkan Modal
+    overlay.classList.remove('hidden');
+    overlay.classList.add('flex');
+    
+    // Isi data otomatis ke form modal close
+    document.getElementById('display-emiten-close').innerText = emiten;
+    document.getElementById('close-emiten').value = emiten;
+    document.getElementById('close-lot').value = lot;
+    
+    // Set default tanggal hari ini
+    document.getElementById('close-date').value = new Date().toISOString().split('T')[0];
+}
+
+// --- 2. FUNGSI UNTUK MENUTUP MODAL CLOSE ---
+function closeModalClose() {
+    const overlay = document.getElementById('modalCloseOverlay');
+    overlay.classList.add('hidden');
+    overlay.classList.remove('flex');
+}
+
+// --- 3. FUNGSI KIRIM DATA CLOSE KE GOOGLE SHEETS ---
+// Pastikan ID form sesuai: "closeTradeForm"
+const closeForm = document.getElementById('closeTradeForm');
+if (closeForm) {
+    closeForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const btn = document.getElementById('btnSubmitClose');
+        const originalText = btn.innerText;
+        
+        btn.innerText = "UPDATING...";
+        btn.disabled = true;
+
+        const payload = {
+            action: 'updateToClose', // Pastikan di Apps Script case-nya sama
+            emiten: document.getElementById('close-emiten').value,
+            exit: parseFloat(document.getElementById('close-exit').value),
+            tglKeluar: document.getElementById('close-date').value,
+            catatan: document.getElementById('close-note').value
+        };
+
+        try {
+            await fetch(scriptURL, {
+                method: 'POST',
+                mode: 'no-cors', // Penting untuk Apps Script
+                body: JSON.stringify(payload)
+            });
+
+            alert("Status " + payload.emiten + " Berhasil di CLOSE!");
+            location.reload(); 
+        } catch (error) {
+            console.error("Error:", error);
+            alert("Terjadi kesalahan, namun cek Google Sheet Anda.");
+            location.reload();
+        }
+    });
+}
+    </script>
+   <button onclick="toggleModal()" class="fab md:hidden">
+    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3">
+        <path d="M12 4v16m8-8H4"/>
+    </svg>
+  
+</button>
+</body>
+</html>

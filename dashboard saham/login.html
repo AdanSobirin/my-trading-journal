@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | IndoStock Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-md glass-card rounded-[2.5rem] p-8 md:p-10 shadow-2xl">
+        <div class="text-center mb-10">
+            <h1 class="text-3xl font-black text-emerald-400 italic tracking-tighter mb-2">INDOSTOCK</h1>
+            <p class="text-slate-400 text-xs font-bold uppercase tracking-widest">Private Trading Journal</p>
+        </div>
+
+        <form id="loginForm" class="space-y-6">
+            <div>
+                <label class="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Username</label>
+                <input type="text" id="username" required 
+                    class="w-full mt-1 bg-[#0f172a] border-2 border-slate-700 rounded-2xl p-4 text-emerald-400 font-bold focus:border-emerald-500 outline-none transition-all"
+                    placeholder="Masukkan username...">
+            </div>
+
+            <div>
+                <label class="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Password</label>
+                <input type="password" id="password" required 
+                    class="w-full mt-1 bg-[#0f172a] border-2 border-slate-700 rounded-2xl p-4 text-emerald-400 font-bold focus:border-emerald-500 outline-none transition-all"
+                    placeholder="••••••••">
+            </div>
+
+            <button type="submit" id="loginBtn" 
+                class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-2xl shadow-lg shadow-emerald-900/40 transition-all active:scale-95 uppercase tracking-widest mt-4">
+                Masuk Sistem
+            </button>
+        </form>
+
+        <p id="errorMessage" class="text-rose-500 text-xs font-bold text-center mt-6 hidden uppercase tracking-tighter">
+            Username atau Password salah!
+        </p>
+    </div>
+
+    <script>
+        // Ganti dengan scriptURL milikmu yang sudah di-deploy ulang
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbxigXCHCY9T849VR5E88sZOWDYSkoEAdu57uDDMP1VFYK-ZXRCxKsPOIl9QFukvJolM/exec';
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btn = document.getElementById('loginBtn');
+            const msg = document.getElementById('errorMessage');
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+
+            btn.innerText = "AUTHENTICATING...";
+            btn.disabled = true;
+            msg.classList.add('hidden');
+
+  try {
+    const response = await fetch(scriptURL, {
+        method: 'POST',
+        // Kita gunakan text/plain agar tidak memicu CORS pre-flight yang rumit
+        headers: { 'Content-Type': 'text/plain' }, 
+        body: JSON.stringify({
+            action: 'login',
+            username: user,
+            password: pass
+        })
+    });
+
+    // Cek apakah response oke
+    const text = await response.text(); 
+    console.log("Respon Mentah:", text); // Lihat di console F12
+
+    const result = JSON.parse(text);
+
+if (result.status === "success") {
+    localStorage.setItem("isLoggedIn", "true");
+    // Simpan Nama dan Foto dari Database ke Browser
+    localStorage.setItem("displayName", result.displayName);
+    localStorage.setItem("photoUrl", result.photoUrl);
+    
+    window.location.href = "index.html";
+}
+} catch (error) {
+    console.error('Error Details:', error);
+    // Jika tetap Unexpected end of input, kita beri peringatan URL
+    alert('Server tidak merespon. Pastikan URL Script sudah di-deploy sebagai "Anyone"');
+    btn.innerText = "MASUK SISTEM";
+    btn.disabled = false;
+}
+        });
+    </script>
+</body>
+</html>
